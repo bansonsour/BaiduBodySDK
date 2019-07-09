@@ -13,13 +13,11 @@ import java.util.List;
 /**
  * @ClassName: OpenCV_33_FaceSwap
  * @description: 人脸融合方法
- * @author: 小帅丶
- * @create: 2019-05-18
+ * @create: 2019-07-8
  **/
 public class OpenCV_33_FaceSwap {
     /**
-     * @author 小帅丶
-     * @date 2019/5/18
+     * @create: 2019-07-8
      * @param imgPath1 原始图1
      * @param imgPath2 原始图2
      * @param imgSavePath 融合图保存路径
@@ -216,5 +214,102 @@ public class OpenCV_33_FaceSwap {
     public static MatOfPoint2f list2MP2(List<Point> points) {
         Point[] t = (Point[])points.toArray(new Point[points.size()]);
         return new MatOfPoint2f(t);
+    }
+
+    /**
+     * @param imgPath1 原始图1
+     * @param imgPath2 原始图2
+     * @param imgSavePath 融合图保存路径
+     * @return void
+     **/
+    public static void faceMerge(String imgPath1,String imgPath2,String imgSavePath, MergeCallback mergeCallback){
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        // 两张图片地址
+        String path1 = imgPath1;
+        String path2 = imgPath2;
+
+
+        // load the two images.
+        Mat imgCV1 = Imgcodecs.imread(path1);
+        Mat imgCV2 = Imgcodecs.imread(path2);
+        if (null == imgCV1 || imgCV1.cols() <= 0 || null == imgCV2 || imgCV2.cols() <= 0) {
+            System.out.println("There is wrong with images");
+            if (mergeCallback != null) {
+                mergeCallback.onMergeCallback(false,"There is wrong with images");
+            }
+            return;
+        }
+
+        // 人脸识别出的关键点
+        Point[] points1 = FaceDetect.detect(path1);
+        Point[] points2 = FaceDetect.detect(path2);
+
+
+        if (points1 == null || points2 == null) {
+            if (mergeCallback != null) {
+                mergeCallback.onMergeCallback(false,"Face detect is wrong!");
+            }
+            return;
+        }
+
+        // 计算凸包
+        Mat imgCV1Warped = imgCV2.clone();
+        imgCV1.convertTo(imgCV1, CvType.CV_32F);
+        imgCV1Warped.convertTo(imgCV1Warped, CvType.CV_32F);
+
+        MatOfInt hullIndex = new MatOfInt();
+        Imgproc.convexHull(new MatOfPoint(points2), hullIndex, true);
+        int[] hullIndexArray = hullIndex.toArray();
+        int hullIndexLen = hullIndexArray.length;
+        List<Point> hull1 = new LinkedList<Point>();
+        List<Point> hull2 = new LinkedList<Point>();
+
+        // 保存组成凸包的关键点
+        for (int i = 0; i < hullIndexLen; i++) {
+            hull1.add(points1[hullIndexArray[i]]);
+            hull2.add(points2[hullIndexArray[i]]);
+        }
+
+        // delaunay triangulation 三角剖分和仿射变换
+        Rect rect = new Rect(0, 0, imgCV1Warped.cols(), imgCV1Warped.rows());
+        List<Correspondens> delaunayTri = delaunayTriangulation(hull2, rect);
+        for(int i=0;i<delaunayTri.size();++i) {
+            List<Point> t1 = new LinkedList<Point>();
+            List<Point> t2 = new LinkedList<Point>();
+            Correspondens corpd = delaunayTri.get(i);
+            for(int j = 0; j < 3; j++) {
+                t1.add(hull1.get(corpd.getIndex().get(j)));
+                t2.add(hull2.get(corpd.getIndex().get(j)));
+            }
+            imgCV1Warped = warpTriangle(imgCV1, imgCV1Warped, list2MP(t1), list2MP(t2), i);
+        }
+
+        // 无缝融合
+        List<Point> hull8U = new LinkedList<Point>();
+        for(int i = 0; i < hull2.size(); ++i) {
+            Point pt = new Point(hull2.get(i).x, hull2.get(i).y);
+            hull8U.add(pt);
+        }
+
+        Mat mask = Mat.zeros(imgCV2.rows(), imgCV2.cols(), imgCV2.depth());
+        Imgproc.fillConvexPoly(mask, list2MP(hull8U), new Scalar(255, 255, 255));
+
+        Rect r = Imgproc.boundingRect(list2MP(hull2));
+        Point center = new Point((r.tl().x + r.br().x)/2, (r.tl().y + r.br().y)/2);
+
+        Mat output = new Mat();
+        //无缝融合
+        imgCV1Warped.convertTo(imgCV1Warped, CvType.CV_8UC3);
+        Photo.seamlessClone(imgCV1Warped, imgCV2, mask, center, output, Photo.NORMAL_CLONE);
+
+        String filename = imgSavePath;
+        Imgcodecs.imwrite(filename, output);
+        if (mergeCallback != null) {
+            mergeCallback.onMergeCallback(true, "success");
+        }
+    }
+
+    public interface MergeCallback{
+        void onMergeCallback(boolean status, String msg);
     }
 }

@@ -45,7 +45,7 @@ public class FaceDetect {
             //options.put("face_field", "age,beauty,expression,face_shape,gender,glasses,landmark,landmark150,race,quality,eye_status,emotion,face_type");
             //options.put("face_field", "age,beauty,face_shape,landmark,landmark150,face_type");
 
-            options.put("face_field", "landmark72,landmark");
+            options.put("face_field", "beauty,landmark72,landmark");
             options.put("max_face_num", "2");
             options.put("face_type", "LIVE");
             options.put("liveness_control", "NONE");

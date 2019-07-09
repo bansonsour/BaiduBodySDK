@@ -31,7 +31,8 @@ public class Sample {
     public static final String SECRET_KEY = "ibvRUQUCz6dVpEjmROfuVMTTewiv7Nn9";
 
     public static final String Root = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "Baidubody" + File.separator;
-
+    public static final String FrescoPath = Root + "fresco";
+    public static final String TempPath = Root + "temp";
     private static AipBodyAnalysis client;
 
     public static void init() {
@@ -41,6 +42,19 @@ public class Sample {
         // 可选：设置网络连接参数
         client.setConnectionTimeoutInMillis(2000);
         client.setSocketTimeoutInMillis(60000);
+        File rootDir = new File(Root);
+        if (rootDir != null && !rootDir.exists()) {
+            rootDir.mkdirs();
+        }
+        rootDir = new File(FrescoPath);
+        if (rootDir != null && !rootDir.exists()) {
+            rootDir.mkdirs();
+        }
+        rootDir = new File(TempPath);
+        if (rootDir != null && !rootDir.exists()) {
+            rootDir.mkdirs();
+        }
+
     }
 
     public static AipBodyAnalysis getClient() {
